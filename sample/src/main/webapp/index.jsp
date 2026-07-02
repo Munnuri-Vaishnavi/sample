@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Jenkins Automation Project demo</title>
+    <title>Jenkins Automation Project demo second time</title>
 
     <style>
         body {
