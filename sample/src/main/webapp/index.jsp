@@ -1,224 +1,290 @@
+<%@ page contentType="text/html;charset=UTF-8" language="java" isELIgnored="true" %>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Jenkins — Automate Everything You Ship</title>
+<title>Automatic Build Detection — GitHub to Jenkins</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #F7F8FA;
+    --panel: #FFFFFF;
+    --border: #E3E6EA;
+    --text: #1F2430;
+    --muted: #6B7280;
+    --primary: #2F6FED;
+    --success: #1E9E5A;
+    --font: 'Inter', Arial, sans-serif;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    line-height:1.6;
+  }
+  .page{
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 60px 24px 100px;
+  }
+  h1{
+    font-size: 30px;
+    font-weight: 700;
+    margin: 0 0 12px;
+  }
+  p.lead{
+    color: var(--muted);
+    font-size: 15px;
+    max-width: 600px;
+    margin: 0 0 48px;
+  }
+  .flow{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 16px;
+    margin-bottom: 56px;
+    flex-wrap: wrap;
+  }
+  .flow-step{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    text-align:center;
+    min-width: 140px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .flow-step .icon{ font-size: 24px; margin-bottom: 8px; }
+  .flow-step .name{ font-weight: 600; font-size: 14px; }
+  .flow-step .desc{ color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .flow-arrow{ color: var(--border); font-size: 20px; }
+
+  .card{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .card h2{
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+  .card p.hint{
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0 0 24px;
+  }
+
+  .btn{
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    padding: 12px 22px;
+    border-radius: 8px;
+    font-family: var(--font);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+  .btn:hover{ opacity: 0.9; }
+  .btn:disabled{ opacity: 0.5; cursor: not-allowed; }
+
+  .status-line{
+    margin-top: 24px;
+    font-size: 14px;
+    color: var(--muted);
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    min-height: 22px;
+  }
+  .status-dot{
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--border);
+    transition: background 0.3s ease;
+  }
+  .status-dot.active{ background: var(--primary); }
+  .status-dot.done{ background: var(--success); }
+
+  .stages{
+    margin-top: 28px;
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 620px){ .stages{ grid-template-columns: repeat(2, 1fr); } }
+
+  .stage{
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align:center;
+    background: #FAFBFC;
+    transition: all 0.3s ease;
+  }
+  .stage .stage-name{ font-size: 13px; font-weight: 600; }
+  .stage .stage-mark{ margin-top: 6px; font-size: 15px; color: var(--muted); }
+  .stage.active{ border-color: var(--primary); background: #EEF3FE; }
+  .stage.active .stage-mark{ color: var(--primary); }
+  .stage.complete{ border-color: var(--success); background: #EAF8F0; }
+  .stage.complete .stage-mark{ color: var(--success); }
+
+  .result{
+    margin-top: 24px;
+    padding: 14px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    display:none;
+  }
+  .result.show{ display:block; }
+  .result.success{ background: #EAF8F0; color: var(--success); border: 1px solid #BFE8CF; }
+
+  footer{
+    text-align:center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 56px;
+  }
+</style>
 </head>
 <body>
 
-<header class="site-header">
-  <nav class="nav">
-    <a href="#home" class="brand" data-nav-link data-target="home"><span class="dot"></span> jenkins.local</a>
-    <ul class="nav-links" id="navLinks">
-      <li><a href="#home" data-nav-link data-target="home" class="active">Home</a></li>
-      <li><a href="#features" data-nav-link data-target="features">Why Jenkins</a></li>
-      <li><a href="#pipeline" data-nav-link data-target="pipeline">Pipeline</a></li>
-    </ul>
-    <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">☰</button>
-  </nav>
-</header>
+<div class="page">
+  <h1>Automatic Build Detection</h1>
+  <p class="lead">This demo shows how Jenkins automatically detects when new code is pushed to GitHub, and starts the build process without any manual step.</p>
 
-<main>
-
-  <!-- ============ HOME ============ -->
-  <section class="page" id="home" data-page>
-    <section class="hero wrap">
-      <div class="hero-grid">
-        <div>
-          <span class="eyebrow"><span class="dot"></span> Build #47 — passing</span>
-          <h1>Push code.<br>Jenkins takes it <span class="accent">from there.</span></h1>
-          <p>Jenkins is the open-source automation server that watches your repo, runs your build the moment you push, and tells you — pass or fail — before you've switched tabs.</p>
-          <div class="hero-actions">
-            <a href="#pipeline" class="btn btn-primary" data-nav-link data-target="pipeline">See a pipeline run →</a>
-            <a href="#features" class="btn btn-ghost" data-nav-link data-target="features">Why teams use it</a>
-          </div>
-        </div>
-
-        <div class="terminal reveal">
-          <div class="terminal-bar">
-            <span></span><span></span><span></span>
-            <span class="t-label">build.log</span>
-          </div>
-          <div class="terminal-body" data-terminal></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section wrap">
-      <div class="section-head reveal">
-        <span class="eyebrow">01 — The idea</span>
-        <h2>One push, zero manual steps.</h2>
-        <p>Every commit is a question: does this still work? Jenkins answers it automatically, every time, so your team finds out in minutes, not at release day.</p>
-      </div>
-
-      <div class="card-grid">
-        <div class="card reveal">
-          <div class="icon">→</div>
-          <h3>Detects the push</h3>
-          <p>A webhook fires the instant you push to your branch — no manual trigger, no polling, no waiting around.</p>
-        </div>
-        <div class="card reveal">
-          <div class="icon">⚙</div>
-          <h3>Runs your pipeline</h3>
-          <p>Checkout, build, test, deploy — defined once in a Jenkinsfile and executed the same way, every single time.</p>
-        </div>
-        <div class="card reveal">
-          <div class="icon">✓</div>
-          <h3>Reports back</h3>
-          <p>Pass or fail, you get a clear result with full logs — before a broken build ever reaches production.</p>
-        </div>
-      </div>
-    </section>
-  </section>
-
-  <!-- ============ FEATURES ============ -->
-  <section class="page" id="features" data-page hidden>
-    <section class="section wrap" style="padding-top: 64px;">
-      <div class="section-head reveal">
-        <span class="eyebrow"><span class="dot"></span> Why teams reach for it</span>
-        <h2>Built for the part of shipping software nobody wants to do by hand.</h2>
-        <p>Jenkins has stayed the backbone of CI/CD for over a decade because it doesn't force one workflow — it adapts to yours.</p>
-      </div>
-
-      <div class="card-grid">
-        <div class="card reveal">
-          <div class="icon">⬡</div>
-          <h3>1,800+ plugins</h3>
-          <p>GitHub, Docker, Slack, AWS, Kubernetes — if it's part of your stack, there's almost certainly a plugin for it.</p>
-        </div>
-        <div class="card reveal">
-          <div class="icon">⌘</div>
-          <h3>Pipeline as code</h3>
-          <p>Your entire build process lives in a Jenkinsfile, versioned right alongside your source — no clicking through a UI to reconstruct it.</p>
-        </div>
-        <div class="card reveal">
-          <div class="icon">⇄</div>
-          <h3>Distributed builds</h3>
-          <p>Spread work across multiple agents and machines so builds run in parallel instead of queuing up behind each other.</p>
-        </div>
-        <div class="card reveal">
-          <div class="icon">🔒</div>
-          <h3>Self-hosted control</h3>
-          <p>Runs on your own infrastructure — your code, your secrets, and your build history never leave your servers.</p>
-        </div>
-        <div class="card reveal">
-          <div class="icon">↻</div>
-          <h3>Free and open source</h3>
-          <p>No per-seat pricing or usage caps. Community-maintained, and it's been battle-tested since 2011.</p>
-        </div>
-        <div class="card reveal">
-          <div class="icon">◧</div>
-          <h3>Works with anything</h3>
-          <p>Java, Python, Node, .NET, mobile, static sites — Jenkins doesn't care what you're building, only that it can run a script.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="section wrap">
-      <div class="pipeline-stage reveal" style="text-align:center; padding: 56px 32px;">
-        <span class="eyebrow"><span class="dot"></span> See it in motion</span>
-        <h2 style="margin: 14px 0 12px;">Want to watch a build actually run?</h2>
-        <p style="color: var(--text-muted); max-width: 50ch; margin: 0 auto 28px;">The pipeline tab walks through Checkout → Build → Test → Deploy — click one button and watch each stage complete live.</p>
-        <a href="#pipeline" class="btn btn-primary" data-nav-link data-target="pipeline">Run the pipeline →</a>
-      </div>
-    </section>
-  </section>
-
-  <!-- ============ PIPELINE ============ -->
-  <section class="page" id="pipeline" data-page hidden>
-    <section class="section wrap" style="padding-top: 64px;">
-      <div class="section-head reveal">
-        <span class="eyebrow"><span class="dot"></span> How it works</span>
-        <h2>Four stages. One click. Every push.</h2>
-        <p>This is the same sequence Jenkins runs behind the scenes on every commit. Click below to watch it happen.</p>
-      </div>
-
-      <div class="pipeline-stage reveal">
-        <div class="stepper">
-          <div class="track-fill"></div>
-          <div class="step">
-            <div class="node">1</div>
-            <div class="label">Checkout</div>
-            <div class="sub">pull latest commit</div>
-          </div>
-          <div class="step">
-            <div class="node">2</div>
-            <div class="label">Build</div>
-            <div class="sub">compile / bundle</div>
-          </div>
-          <div class="step">
-            <div class="node">3</div>
-            <div class="label">Test</div>
-            <div class="sub">run test suite</div>
-          </div>
-          <div class="step">
-            <div class="node">4</div>
-            <div class="label">Deploy</div>
-            <div class="sub">ship to production</div>
-          </div>
-        </div>
-
-        <div class="status-line" data-status>Idle — click "Run Pipeline" to start a build</div>
-
-        <div class="pipeline-controls">
-          <button class="btn btn-primary" data-run-pipeline>▶ Run Pipeline</button>
-          <button class="btn btn-ghost" data-reset-pipeline>Reset</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="section wrap">
-      <div class="section-head reveal">
-        <span class="eyebrow">02 — In detail</span>
-        <h2>What happens at each stage</h2>
-      </div>
-
-      <div class="reveal">
-        <div class="timeline-item">
-          <div class="timeline-num">01</div>
-          <div>
-            <h3>Checkout</h3>
-            <p>Jenkins listens for a webhook from your repo host. The moment you push, it pulls the exact commit that triggered the build — nothing stale, nothing manual.</p>
-          </div>
-        </div>
-        <div class="timeline-item">
-          <div class="timeline-num">02</div>
-          <div>
-            <h3>Build</h3>
-            <p>Your project is compiled, bundled, or otherwise prepared exactly as defined in the Jenkinsfile — the same steps a developer would run locally, just automated.</p>
-          </div>
-        </div>
-        <div class="timeline-item">
-          <div class="timeline-num">03</div>
-          <div>
-            <h3>Test</h3>
-            <p>The test suite runs against the fresh build. If anything fails, the pipeline stops here and flags it — before it ever reaches deployment.</p>
-          </div>
-        </div>
-        <div class="timeline-item">
-          <div class="timeline-num">04</div>
-          <div>
-            <h3>Deploy</h3>
-            <p>Once tests pass, the build ships — to a server, a container registry, or in this case, a static host. Fully automatic, fully logged.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-  </section>
-
-</main>
-
-<footer class="footer wrap">
-  <div class="footer-inner">
-    <span class="build-badge"><span class="dot"></span> deployed via Jenkins — build #47</span>
-    <p>Single-page demo · built to show CI/CD in action</p>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="icon">&#128187;</div>
+      <div class="name">Push Code</div>
+      <div class="desc">Developer commits changes</div>
+    </div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-step">
+      <div class="icon">&#128225;</div>
+      <div class="name">GitHub</div>
+      <div class="desc">Repository is updated</div>
+    </div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-step">
+      <div class="icon">&#9881;</div>
+      <div class="name">Jenkins</div>
+      <div class="desc">Change is detected automatically</div>
+    </div>
   </div>
-</footer>
 
-<script src="script.js"></script>
+  <div class="card">
+    <h2>Try it</h2>
+    <p class="hint">Click the button below to simulate pushing a code change and see Jenkins pick it up automatically.</p>
+
+    <button class="btn" id="pushBtn">Simulate Code Push</button>
+
+    <div class="status-line" id="statusLine">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Waiting for a code push...</span>
+    </div>
+
+    <div class="stages" id="stages">
+      <div class="stage" data-stage="detect">
+        <div class="stage-name">Detect Change</div>
+        <div class="stage-mark">&#9675;</div>
+      </div>
+      <div class="stage" data-stage="build">
+        <div class="stage-name">Build</div>
+        <div class="stage-mark">&#9675;</div>
+      </div>
+      <div class="stage" data-stage="test">
+        <div class="stage-name">Test</div>
+        <div class="stage-mark">&#9675;</div>
+      </div>
+      <div class="stage" data-stage="deploy">
+        <div class="stage-name">Deploy</div>
+        <div class="stage-mark">&#9675;</div>
+      </div>
+    </div>
+
+    <div class="result success" id="result">
+      Build completed successfully. The new code is now live.
+    </div>
+  </div>
+
+  <footer>Simple demo — no real GitHub or Jenkins connection is used.</footer>
+</div>
+
+<script>
+(function(){
+  var pushBtn = document.getElementById('pushBtn');
+  var statusDot = document.getElementById('statusDot');
+  var statusText = document.getElementById('statusText');
+  var result = document.getElementById('result');
+  var busy = false;
+
+  function sleep(ms){
+    return new Promise(function(resolve){ setTimeout(resolve, ms); });
+  }
+
+  function setStage(name, state){
+    var el = document.querySelector('.stage[data-stage="' + name + '"]');
+    el.className = 'stage' + (state ? (' ' + state) : '');
+    var mark = el.querySelector('.stage-mark');
+    if(state === 'active'){ mark.innerHTML = '&#9679;'; }
+    else if(state === 'complete'){ mark.innerHTML = '&#10003;'; }
+    else { mark.innerHTML = '&#9675;'; }
+  }
+
+  function resetStages(){
+    ['detect','build','test','deploy'].forEach(function(s){ setStage(s, ''); });
+    result.className = 'result success';
+  }
+
+  pushBtn.addEventListener('click', function(){
+    if(busy) return;
+    busy = true;
+    pushBtn.disabled = true;
+    resetStages();
+
+    statusDot.className = 'status-dot active';
+    statusText.textContent = 'New code pushed to GitHub...';
+
+    sleep(900).then(function(){
+      statusText.textContent = 'Jenkins detected the change automatically.';
+      setStage('detect', 'active');
+      return sleep(1000);
+    }).then(function(){
+      setStage('detect', 'complete');
+      setStage('build', 'active');
+      statusText.textContent = 'Building the project...';
+      return sleep(1100);
+    }).then(function(){
+      setStage('build', 'complete');
+      setStage('test', 'active');
+      statusText.textContent = 'Running tests...';
+      return sleep(1100);
+    }).then(function(){
+      setStage('test', 'complete');
+      setStage('deploy', 'active');
+      statusText.textContent = 'Deploying the update...';
+      return sleep(1000);
+    }).then(function(){
+      setStage('deploy', 'complete');
+      statusDot.className = 'status-dot done';
+      statusText.textContent = 'Done. Jenkins handled everything automatically.';
+      result.className = 'result success show';
+      busy = false;
+      pushBtn.disabled = false;
+    });
+  });
+})();
+</script>
+
 </body>
 </html>
