@@ -56,7 +56,7 @@
 <body>
 
 <header>
-    <h1>🚀 Automating Projects Using Jenkins</h1>
+    <h1>🚀 Automating Projects Using Jenkins demo</h1>
 </header>
 
 <div class="container">
